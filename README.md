@@ -49,7 +49,7 @@ cargo run
 ## 🛠️ Dependencias
 - ### `raylib v5.5.1`
 - ### `rand = v0.8`
-- ### `image = v0.25.6
+- ### `image = v0.25.6`
 - ### `rodio = v0.21.1`
 
 --- 
