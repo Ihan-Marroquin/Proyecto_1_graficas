@@ -1,0 +1,74 @@
+# ---------------------------
+# Rust / Cargo
+# ---------------------------
+/target/                      # compilados de cargo
+**/target/
+
+# Backup / temp files often created by editors
+**/*.rs~
+**/*.rs.bk
+*~
+*.swp
+*.tmp
+*.bak
+
+# Do NOT ignore Cargo.lock for binary apps unless you know what you're doing.
+# (If you want to ignore it for libraries, uncomment the next line.)
+# Cargo.lock
+
+# ---------------------------
+# Build artifacts / binaries
+# ---------------------------
+*.exe
+*.dll
+*.dylib
+*.so
+*.pdb
+*.lib
+*.a
+
+# If you have custom build folders:
+build/
+dist/
+
+# ---------------------------
+# Editor / IDE
+# ---------------------------
+.vscode/
+.idea/
+*.iml
+*.code-workspace
+
+# ---------------------------
+# OS files
+# ---------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------
+# Logs / runtime / misc
+# ---------------------------
+*.log
+logs/
+tmp/
+temp/
+
+# ---------------------------
+# Packaging / caches / coverage
+# ---------------------------
+coverage/
+*.lcov
+.cache/
+# node_modules/             # uncomment if you ever add JS deps
+
+# ---------------------------
+# Optional: ignore generated assets / large binaries
+# (normally you WANT to keep your game's assets in the repo;
+#  uncomment lines below only if you intentionally don't want them tracked)
+# ---------------------------
+# /assets/*.ogg
+# /assets/*.mp3
+# /assets/*.wav
+# /assets/*.png
+# /assets/*.jpg
