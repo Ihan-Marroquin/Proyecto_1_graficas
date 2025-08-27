@@ -2,10 +2,10 @@ use raylib::prelude::*;
 use std::f32::consts::PI;
 
 pub struct Player {
-    pub pos: Vector2,   
-    pub a: f32,         
-    pub fov: f32,      
-    pub has_key: bool,  
+    pub pos: Vector2,  
+    pub a: f32,        
+    pub fov: f32,  
+    pub has_key: bool,
     pub health: f32,
     pub health_max: f32,
     pub shield: f32,
@@ -13,6 +13,7 @@ pub struct Player {
     pub stamina: f32,
     pub stamina_max: f32,
     pub binocular_timer: f32,
+    pub step_timer: f32, 
 }
 
 impl Player {
@@ -29,15 +30,19 @@ impl Player {
             stamina: 100.0,
             stamina_max: 100.0,
             binocular_timer: 0.0,
+            step_timer: 0.0,
         }
     }
 
     pub fn update_timers(&mut self, dt: f32) {
         if self.stamina < self.stamina_max {
-            self.stamina = (self.stamina + 8.0 * dt).min(self.stamina_max);
+            self.stamina = (self.stamina + 12.0 * dt).min(self.stamina_max);
         }
         if self.binocular_timer > 0.0 {
             self.binocular_timer = (self.binocular_timer - dt).max(0.0);
+        }
+        if self.step_timer > 0.0 {
+            self.step_timer = (self.step_timer - dt).max(0.0);
         }
     }
 

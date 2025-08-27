@@ -72,19 +72,48 @@ fn draw_sound_menu(window: &mut RaylibHandle, raylib_thread: &RaylibThread, volu
     d.draw_text("Izquierda/Derecha para ajustar - ENTER para volver", 120, 280, 20, Color::DARKGRAY);
 }
 
-fn draw_victory(window: &mut RaylibHandle, raylib_thread: &RaylibThread) {
+fn draw_victory(window: &mut RaylibHandle, raylib_thread: &RaylibThread, win_tex: Option<&Texture2D>) {
     let mut d = window.begin_drawing(raylib_thread);
     d.clear_background(Color::RAYWHITE);
-    d.draw_text("GANASTE! Escapaste de la casa embrujada", 80, 200, 36, Color::GREEN);
-    d.draw_text("Presiona ENTER para volver al menu", 80, 300, 22, Color::DARKGRAY);
+    if let Some(tex) = win_tex {
+        let screen_w = d.get_screen_width() as f32;
+        let screen_h = d.get_screen_height() as f32;
+
+        let tw = tex.width() as f32;
+        let th = tex.height() as f32;
+
+        let scale_x = (screen_w / tw).max(0.0);
+        let scale_y = (screen_h / th).max(0.0);
+
+        d.draw_texture_ex(tex, Vector2::new(0.0, 0.0), 0.0, scale_x.max(scale_y), Color::WHITE);
+    } else {
+        d.draw_text("GANASTE! Escapaste de la casa embrujada", 80, 200, 36, Color::GREEN);
+        d.draw_text("Presiona ENTER para volver al menu", 80, 300, 22, Color::DARKGRAY);
+    }
 }
 
-fn draw_gameover(window: &mut RaylibHandle, raylib_thread: &RaylibThread) {
+fn draw_gameover(window: &mut RaylibHandle, raylib_thread: &RaylibThread, game_over_tex: Option<&Texture2D>) {
     let mut d = window.begin_drawing(raylib_thread);
     d.clear_background(Color::RAYWHITE);
-    d.draw_text("GAME OVER", 220, 200, 64, Color::RED);
-    d.draw_text("Has muerto. Presiona ENTER para volver al menu.", 110, 300, 22, Color::DARKGRAY);
+
+    if let Some(tex) = game_over_tex {
+        let screen_w = d.get_screen_width() as f32;
+        let screen_h = d.get_screen_height() as f32;
+
+        let tw = tex.width() as f32;
+        let th = tex.height() as f32;
+
+        let scale_x = (screen_w / tw).max(0.0);
+        let scale_y = (screen_h / th).max(0.0);
+
+        d.draw_texture_ex(tex, Vector2::new(0.0, 0.0), 0.0, scale_x.max(scale_y), Color::WHITE);
+
+    } else {
+        d.draw_text("GAME OVER", 220, 200, 64, Color::RED);
+        d.draw_text("Has muerto. Presiona ENTER para volver al menu.", 110, 300, 22, Color::DARKGRAY);
+    }
 }
+
 
 fn expand_maze(maze: &Maze, factor: usize) -> Maze {
     let rows = maze.len();
@@ -390,11 +419,18 @@ fn main() {
     let door_tex = Image::load_image("assets/door.png")
         .and_then(|img| window.load_texture_from_image(&raylib_thread, &img))
         .expect("assets/door.png missing");
+    let game_over_tex: Option<Texture2D> = Image::load_image("assets/game_over.png")
+        .ok()
+        .and_then(|img| window.load_texture_from_image(&raylib_thread, &img).ok());
+    let win_tex: Option<Texture2D> = Image::load_image("assets/win.png")
+        .ok()
+        .and_then(|img| window.load_texture_from_image(&raylib_thread, &img).ok());
+
 
     let texmgr = TextureManager::new(&mut window, &raylib_thread);
 
     let mut music_volume = 0.45_f32;
-    let mut audio = AudioManager::new_loop("assets/music.ogg", music_volume);
+    let mut audio = AudioManager::new_loop("assets/music.ogg", music_volume, 0.4);
 
     let mut state = AppState::Menu { selected: 0 };
     let mut last = Instant::now();
@@ -444,12 +480,12 @@ fn main() {
             AppState::SoundMenu { volume, previous_selected } => {
                 if window.is_key_down(KeyboardKey::KEY_LEFT) {
                     *volume = (*volume - 0.6 * frame_dt).clamp(0.0, 1.0);
-                    audio.set_volume(*volume);
+                    audio.set_music_volume(*volume);
                     music_volume = *volume;
                 }
                 if window.is_key_down(KeyboardKey::KEY_RIGHT) {
                     *volume = (*volume + 0.6 * frame_dt).clamp(0.0, 1.0);
-                    audio.set_volume(*volume);
+                    audio.set_music_volume(*volume);
                     music_volume = *volume;
                 }
                 if window.is_key_pressed(KeyboardKey::KEY_ENTER) {
@@ -459,7 +495,7 @@ fn main() {
             AppState::Playing => {
                 if let Some(pl) = player.as_mut() {
                     let input_dt = frame_dt.min(FIXED_DT);
-                    if let Some(msg) = process_events(&mut window, pl, &mut maze, block_size, input_dt, &mut goal_unlocked) {
+                    if let Some(msg) = process_events(&mut window, pl, &mut maze, block_size, input_dt, &mut goal_unlocked, &audio) {
                         message = Some((msg, 2.0));
                     }
                 }
@@ -579,7 +615,7 @@ fn main() {
                         'outer1: for r in 1..rows-1 { for c in (1..cols-1).rev() { if maze[r][c] == ' ' { spawn1=(c,r); break 'outer1; } } }
                         let mut spawn2 = (1usize, rows.saturating_sub(3));
                         'outer2: for r in (1..rows-1).rev() { for c in 1..cols-1 { if maze[r][c] == ' ' { spawn2=(c,r); break 'outer2; } } }
-                        enemies.push(Enemy::new(spawn1, block_size, 0, 18.0)); // slower enemies
+                        enemies.push(Enemy::new(spawn1, block_size, 0, 18.0));
                         enemies.push(Enemy::new(spawn2, block_size, 0, 18.0));
 
                         use rand::{thread_rng, Rng};
@@ -632,7 +668,10 @@ fn main() {
 
                         for e in enemies.iter_mut() {
                             let attacked = e.update(&maze, block_size, &pl.pos, FIXED_DT);
-                            if attacked { pl.apply_damage(50.0); }
+                            if attacked {
+                                pl.apply_damage(50.0);
+                                audio.play_sfx("assets/sfx_hurt.ogg", 0.3);
+                            }
                         }
 
                         let player_cell = ((pl.pos.x as usize) / block_size, (pl.pos.y as usize) / block_size);
@@ -649,6 +688,7 @@ fn main() {
                         }
 
                         if pl.health <= 0.0 {
+                            audio.play_sfx("assets/sfx_gameover.ogg", 0.3);
                             state = AppState::GameOver;
                         }
 
@@ -656,6 +696,7 @@ fn main() {
                         let j = (pl.pos.y as usize) / block_size;
                         if j < maze.len() && i < maze[j].len() && maze[j][i] == 'g' {
                             if pl.has_key || goal_unlocked {
+                                audio.play_sfx("assets/sfx_victory.ogg", 0.3);
                                 state = AppState::Victory;
                             } else {
                                 message = Some(("Necesitas una llave para entrar a la meta".to_string(), 2.5));
@@ -857,8 +898,8 @@ fn main() {
                     draw_menu(&mut window, &raylib_thread, 0);
                 }
             }
-            AppState::Victory => { draw_victory(&mut window, &raylib_thread); }
-            AppState::GameOver => { draw_gameover(&mut window, &raylib_thread); }
+            AppState::Victory => { draw_victory(&mut window, &raylib_thread, win_tex.as_ref());}
+            AppState::GameOver => { draw_gameover(&mut window, &raylib_thread, game_over_tex.as_ref());}
             AppState::Exiting => { break 'main_loop; }
         }
     }

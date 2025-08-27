@@ -2,7 +2,7 @@ use raylib::prelude::*;
 use std::f32::consts::PI;
 use crate::player::Player;
 use crate::maze::Maze;
-
+use crate::audio::AudioManager;
 
 pub fn process_events(
     window: &mut raylib::prelude::RaylibHandle,
@@ -11,13 +11,15 @@ pub fn process_events(
     block_size: usize,
     dt: f32,
     goal_unlocked: &mut bool,
+    audio: &AudioManager,
 ) -> Option<String> {
     const BASE_SPEED: f32 = 80.0; 
     const RUN_MULT: f32 = 1.6;
-    const ROT_SPEED: f32 = PI; 
+    const RUN_MULT2: f32 = 0.9;
+    const ROT_SPEED: f32 = PI;
+    const MOUSE_SENS: f32 = 0.01;
 
-    let mut dt = dt.min(0.05);
-
+    let dt = dt.min(0.05);
     let mut msg: Option<String> = None;
 
     if window.is_key_down(KeyboardKey::KEY_LEFT) {
@@ -27,10 +29,22 @@ pub fn process_events(
         player.a += ROT_SPEED * dt;
     }
 
+    if window.is_mouse_button_down(raylib::consts::MouseButton::MOUSE_BUTTON_RIGHT) {
+        let md = window.get_mouse_delta();
+        player.a += md.x * MOUSE_SENS;
+    }
+
     let mut speed = BASE_SPEED;
-    let running = window.is_key_down(KeyboardKey::KEY_LEFT_SHIFT) && player.stamina > 5.0;
-    if running {
+    let running = (window.is_key_down(KeyboardKey::KEY_LEFT_SHIFT) || window.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT)) && player.stamina > 5.0;
+    let running2 = window.is_mouse_button_down(raylib::consts::MouseButton::MOUSE_BUTTON_LEFT) && player.stamina > 5.0;
+    if running{
         speed *= RUN_MULT;
+        player.stamina = (player.stamina - 60.0 * dt).max(0.0);
+        if player.stamina <= 10.0 {
+            speed *= 0.5;
+        }
+    } if running2{
+        speed *= RUN_MULT2;
         player.stamina = (player.stamina - 60.0 * dt).max(0.0);
         if player.stamina <= 10.0 {
             speed *= 0.5;
@@ -47,6 +61,10 @@ pub fn process_events(
     if window.is_key_down(KeyboardKey::KEY_DOWN) {
         want_dx -= player.a.cos() * speed * dt;
         want_dy -= player.a.sin() * speed * dt;
+    }
+    if window.is_mouse_button_down(raylib::consts::MouseButton::MOUSE_BUTTON_LEFT) {
+        want_dx += player.a.cos() * speed * dt;
+        want_dy += player.a.sin() * speed * dt;
     }
 
     let total_dist = (want_dx*want_dx + want_dy*want_dy).sqrt();
@@ -96,11 +114,20 @@ pub fn process_events(
                 '+' | '-' | '|' => {
                     break;
                 },
-                _ => {
-                    break;
-                }
+                _ => break,
             }
-        } 
+        }
+
+    let is_running = (running || running2) || (speed > BASE_SPEED + 1e-3);
+    if is_running && total_dist > 0.0 {
+            let step_interval = 0.18f32;
+            let step_vol = 0.75f32;
+            if player.step_timer <= 0.0 {
+                eprintln!("DEBUG: play step sfx: running={} running2={} speed={} total_dist={}", running, running2, speed, total_dist);
+                audio.play_sfx("assets/sfx_step.ogg", step_vol);
+                player.step_timer = step_interval;
+            }
+        }
     }
 
     while player.a > std::f32::consts::PI { player.a -= 2.0 * std::f32::consts::PI; }
